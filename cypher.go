@@ -37,7 +37,7 @@ func Connect(driverName, uri, dbName, username, password string) (DB, error) {
 // Collect all rows of a result into a slice, consuming the result in the process.
 func Collect(result Result) ([]Row, error) {
 	rows := make([]Row, 0, 30)
-	err := result.Rows(func(row Row) (bool, error) {
+	_, err := result.Rows(func(row Row) (interface{}, error) {
 		rows = append(rows, row)
 		return true, nil
 	})
@@ -116,7 +116,7 @@ type Response interface {
 	// Run the job on each result in the output.
 	// Return false to stop processing after the current job is complete, true otherwise.
 	// Return an error from the job to have it propogate out.
-	Results(job func(result Result) (bool, error)) error
+	Results(job func(result Result) (interface{}, error)) (interface{}, error)
 
 	// Dispose of all results in the output.
 	Consume() error
@@ -127,9 +127,9 @@ type Result interface {
 	Index() int
 
 	// Run the job on each row of the output.
-	// Return true from the job to continue, false to stop iterating and discard the remainder of the results.
+	// Return nil from the job to continue, anything else to stop iterating and discard the remainder of the results.
 	// Return an error from the job to have it propogate out.
-	Rows(job func(row Row) (bool, error)) error
+	Rows(job func(row Row) (interface{}, error)) (interface{}, error)
 
 	// Discard all of the results and get the stats.
 	Consume() (Stats, error)

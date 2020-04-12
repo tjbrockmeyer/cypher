@@ -34,27 +34,27 @@ type response struct {
 	}
 }
 
-func (r *response) Results(job func(nextResult cypher.Result) (bool, error)) error {
+func (r *response) Results(job func(nextResult cypher.Result) (interface{}, error)) (interface{}, error) {
 	if r.deferredErr != nil {
-		return r.deferredErr
+		return nil, r.deferredErr
 	}
 	for {
 		nextResult, err := r.nextResult()
 		if err != nil {
-			return errMsg(err, "failed to get the next result")
+			return nil, errMsg(err, "failed to get the next result")
 		}
 		if nextResult == nil {
-			return r.Consume()
+			return nil, r.Consume()
 		}
-		resume, err := job(nextResult)
+		ret, err := job(nextResult)
 		if err != nil {
-			return errMsg(err, "failed during Results result job")
+			return nil, errMsg(err, "failed during Results result job")
 		}
 		if _, err = nextResult.Consume(); err != nil {
-			return err
+			return nil, err
 		}
-		if !resume {
-			return r.Consume()
+		if ret != nil {
+			return ret, r.Consume()
 		}
 	}
 }

@@ -6,42 +6,40 @@ import (
 )
 
 type result struct {
-	res *response
-	index int
+	res           *response
+	index         int
 	columnMapping map[string]int
 
 	parseStarted bool
-	readingRows bool
-	consumed    bool
+	readingRows  bool
+	consumed     bool
 
 	Columns []string `json:"columns"`
-	Stats   stats `json:"stats"`
+	Stats   stats    `json:"stats"`
 }
 
 func (r *result) Index() int {
 	return r.index
 }
 
-func (r *result) Rows(job func(row cypher.Row) (bool, error)) error {
+func (r *result) Rows(job func(row cypher.Row) (interface{}, error)) (interface{}, error) {
 	for {
 		debugLog("getting next row")
 		nextRow, err := r.nextRow()
 		if err != nil {
-			return errMsg(err, "failed to get the next row")
+			return nil, errMsg(err, "failed to get the next row")
 		}
 		debugLog("row has been read - row is nil? (%v)", nextRow == nil)
 		if nextRow == nil {
-			return nil
+			return nil, nil
 		}
-		resume, err := job(nextRow)
+		ret, err := job(nextRow)
 		if err != nil {
-			return errMsg(err, "failed during Results row job")
+			return nil, errMsg(err, "failed during Results row job")
 		}
-		if !resume {
+		if ret != nil {
 			_, err := r.Consume()
-			if err != nil {
-				return err
-			}
+			return ret, err
 		}
 	}
 }

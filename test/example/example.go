@@ -39,14 +39,13 @@ func main() {
 	// 	})
 	// 	checkErr()
 
-
-	err = db.RunMany(
+	_, err = db.RunMany(
 		`MATCH (x {name: $name}) RETURN x.name`, map[string]interface{}{"name": "abc90"},
 		`MATCH (x) WHERE x.name CONTAINS $search RETURN x`, map[string]interface{}{"search": "8"}).
-		Results(func(result cypher.Result) (bool, error) {
-			return true, result.Rows(func(row cypher.Row) (bool, error) {
+		Results(func(result cypher.Result) (interface{}, error) {
+			return result.Rows(func(row cypher.Row) (interface{}, error) {
 				log.Println(row.GetAt(0))
-				return true, nil
+				return row.GetAt(0), nil
 			})
 		})
 	checkErr()
