@@ -57,44 +57,6 @@ func UnmarshalRow(row Row, asStruct interface{}) error {
 	return errors.WithMessage(json.Unmarshal(b, &asStruct), "failed to unmarshal row into struct")
 }
 
-// Collect all rows and unmarshal them all into a slice of structs, consuming the result in the process.
-// Fields will be unmarshalled with the names of columns from the row.
-func CollectAndUnmarshal(result Result, structSlice interface{}) error {
-	rows, err := Collect(result)
-	if err != nil {
-		return err
-	}
-	b, err := json.Marshal(rows)
-	if err != nil {
-		return errors.WithMessage(err, "failed to marshal rows into json")
-	}
-	return errors.WithMessage(json.Unmarshal(b, &structSlice), "failed to unmarshal rows into struct slice")
-}
-
-// Get the first row from the first result, discarding all remaining rows and stats.
-func GetSingleResultRow(response Response) (Row, error) {
-	row, err := response.Results(func(result Result) (interface{}, error) {
-		return result.Rows(func(row Row) (interface{}, error) {
-			return row, nil
-		})
-	})
-	if err != nil {
-		return nil, err
-	}
-	return row.(Row), nil
-}
-
-// Consume a the response, returning the stats from the first result.
-func ConsumeSingleResult(response Response) (Stats, error) {
-	stats, err := response.Results(func(result Result) (interface{}, error) {
-		return result.Consume()
-	})
-	if err != nil {
-		return nil, err
-	}
-	return stats.(Stats), nil
-}
-
 type Driver interface {
 	// Connect to a database.
 	Connect(uri, dbName, username, password string) (DB, error)
