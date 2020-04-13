@@ -57,6 +57,14 @@ func UnmarshalRow(row Row, asStruct interface{}) error {
 	return errors.WithMessage(json.Unmarshal(b, &asStruct), "failed to unmarshal row into struct")
 }
 
+func UnmarshalRows(rows []Row, asStructSlice interface{}) error {
+	b, err := json.Marshal(rows)
+	if err != nil {
+		return errors.WithMessage(err, "failed to marshal rows into json")
+	}
+	return errors.WithMessage(json.Unmarshal(b, &asStructSlice), "failed to unmarshal rows into struct slice")
+}
+
 type Driver interface {
 	// Connect to a database.
 	Connect(uri, dbName, username, password string) (DB, error)
