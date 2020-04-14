@@ -53,6 +53,22 @@ func Single(result Result) (Row, error) {
 	return row, err
 }
 
+func CollectUnmarshal(result Result, asStructSlice interface{}) error {
+	rows, err := Collect(result)
+	if err != nil {
+		return err
+	}
+	return UnmarshalRows(rows, asStructSlice)
+}
+
+func SingleUnmarshal(result Result, asStructSlice interface{}) error {
+	row, err := Single(result)
+	if err != nil {
+		return err
+	}
+	return UnmarshalRow(row, asStructSlice)
+}
+
 // Unmarshal a row into a given struct type.
 // Fields will be unmarshalled with the names of columns from the row.
 func UnmarshalRow(row Row, asStruct interface{}) error {
