@@ -18,6 +18,7 @@ type response struct {
 	parseStarted   bool
 	readingResults bool
 	consumed       bool
+	singleResult   bool
 
 	resultCount int
 	lastResult  *result
@@ -34,29 +35,28 @@ type response struct {
 	}
 }
 
-func (r *response) Results(job func(nextResult cypher.Result) (interface{}, error)) (interface{}, error) {
-	if r.deferredErr != nil {
-		return nil, r.deferredErr
+func (r *response) NextResult() bool {
+	if r.deferredErr != nil || r.consumed {
+		return false
 	}
-	for {
-		nextResult, err := r.nextResult()
-		if err != nil {
-			return nil, errMsg(err, "failed to get the next result")
-		}
-		if nextResult == nil {
-			return nil, r.Consume()
-		}
-		ret, err := job(nextResult)
-		if err != nil {
-			return nil, errMsg(err, "failed during Results result job")
-		}
-		if _, err = nextResult.Consume(); err != nil {
-			return nil, err
-		}
-		if ret != nil {
-			return ret, r.Consume()
-		}
+	err := r.nextResult()
+	if err != nil {
+		r.deferredErr = errMsg(err, "failed to get the next result")
+		return false
 	}
+	if r.lastResult == nil {
+		r.deferredErr = r.Consume()
+		return false
+	}
+	return true
+}
+
+func (r *response) GetResult() cypher.Result {
+	return r.lastResult
+}
+
+func (r *response) Err() error {
+	return r.deferredErr
 }
 
 func (r *response) Consume() error {
@@ -64,11 +64,11 @@ func (r *response) Consume() error {
 		return r.deferredErr
 	}
 	for {
-		nextResult, err := r.nextResult()
+		err := r.nextResult()
 		if err != nil {
 			return errMsg(err, "failed to get the next result")
 		}
-		if nextResult == nil {
+		if r.lastResult == nil {
 			debugLog("response has been completely consumed")
 			r.consumed = true
 			if err := r.getErrors(); err != nil {
@@ -77,7 +77,7 @@ func (r *response) Consume() error {
 			}
 			return errMsg(r.resBody.Close(), "failed to close the response body")
 		}
-		if _, err = nextResult.Consume(); err != nil {
+		if _, err = r.lastResult.Consume(); err != nil {
 			return err
 		}
 	}
@@ -132,24 +132,25 @@ func (r *response) parseKeys() error {
 // Read the next result.
 // If there are no more results, the remaining keys will be read and processed.
 // The transaction key will be non-nil if found.
-func (r *response) nextResult() (*result, error) {
+func (r *response) nextResult() error {
 	if r.consumed {
-		return nil, nil
+		return nil
 	}
 	if r.lastResult != nil && !r.lastResult.consumed {
 		debugLog("last result was not consumed - calling lastResult.Consume() automatically")
 		_, err := r.lastResult.Consume()
 		if err != nil {
-			return nil, err
+			return err
 		}
 	}
 	if !r.dec.More() {
+		r.lastResult = nil
 		t, err := r.dec.Token()
 		if err != nil {
-			return nil, err
+			return err
 		}
 		debugLog("expecting end of list of results ']': token(%v)", t)
-		return nil, r.parseKeys()
+		return r.parseKeys()
 	}
 	r.lastResult = &result{
 		res:   r,
@@ -158,9 +159,9 @@ func (r *response) nextResult() (*result, error) {
 	r.resultCount++
 	err := r.lastResult.parseKeys()
 	if err != nil {
-		return nil, err
+		return err
 	}
-	return r.lastResult, nil
+	return nil
 }
 
 // Returns any attached errors found as an error.

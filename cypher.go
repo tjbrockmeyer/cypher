@@ -37,14 +37,20 @@ func Connect(driverName, uri, dbName, username, password string) (DB, error) {
 // Collect all rows of a result into a slice, consuming the result in the process.
 func Collect(result Result) ([]Row, error) {
 	rows := make([]Row, 0, 30)
-	_, err := result.Rows(func(row Row) (interface{}, error) {
-		rows = append(rows, row)
-		return true, nil
-	})
-	if err != nil {
-		return nil, errors.WithMessage(err, "failed to Collect rows")
+	for result.NextRow() {
+		rows = append(rows, result.GetRow())
 	}
-	return rows, nil
+	return rows, errors.WithMessage(result.Err(), "failed to Collect rows")
+}
+
+// Get the first row of a result, consuming the remainder of the result. Returns nil if there were no rows.
+func Single(result Result) (Row, error) {
+	if !result.NextRow() {
+		return nil, result.Err()
+	}
+	row := result.GetRow()
+	_, err := result.Consume()
+	return row, err
 }
 
 // Unmarshal a row into a given struct type.
@@ -57,6 +63,8 @@ func UnmarshalRow(row Row, asStruct interface{}) error {
 	return errors.WithMessage(json.Unmarshal(b, &asStruct), "failed to unmarshal row into struct")
 }
 
+// Unmarshall a list of rows into a given list of structs.
+// Fields will be unmarshalled with the names of columns from the row.
 func UnmarshalRows(rows []Row, asStructSlice interface{}) error {
 	b, err := json.Marshal(rows)
 	if err != nil {
@@ -88,7 +96,7 @@ type DB interface {
 type Runner interface {
 	// Returns the result of running the given query.
 	// Errors are deferred to the response object.
-	Run(cypher string, params map[string]interface{}) Response
+	Run(cypher string, params map[string]interface{}) Result
 
 	// Returns the summary of the result while discarding the records.
 	// Errors are deferred to the response object.
@@ -107,10 +115,15 @@ type Transaction interface {
 }
 
 type Response interface {
-	// Run the job on each result in the output.
-	// Return false to stop processing after the current job is complete, true otherwise.
-	// Return an error from the job to have it propogate out.
-	Results(job func(result Result) (interface{}, error)) (interface{}, error)
+	// Returns true if another result has been read, false otherwise.
+	// The error should be checked after false is returned.
+	NextResult() bool
+
+	// Returns the last read result. NextResult() must be called before using this function.
+	GetResult() Result
+
+	// Returns an error if an error occurred while reading the last result.
+	Err() error
 
 	// Dispose of all results in the output.
 	Consume() error
@@ -120,12 +133,17 @@ type Result interface {
 	// The index of this result in the list of results returned from the server.
 	Index() int
 
-	// Run the job on each row of the output.
-	// Return nil from the job to continue, anything else to stop iterating and discard the remainder of the results.
-	// Return an error from the job to have it propogate out.
-	Rows(job func(row Row) (interface{}, error)) (interface{}, error)
+	// Returns true if another row has been read, false otherwise.
+	// The error should be checked after false is returned.
+	NextRow() bool
 
-	// Discard all of the results and get the stats.
+	// Returns the last read row.
+	GetRow() Row
+
+	// Returns an error if an error occurred while reading the last row.
+	Err() error
+
+	// Discard all of the rows and get the stats.
 	Consume() (Stats, error)
 }
 

@@ -9,10 +9,10 @@ type transaction struct {
 	db       *database
 	id       string
 	location string
-	alive bool
+	alive    bool
 }
 
-func (tx *transaction) Run(statement string, params map[string]interface{}) cypher.Response {
+func (tx *transaction) Run(statement string, params map[string]interface{}) cypher.Result {
 	return tx.db.run(tx.id, statement, params)
 }
 
@@ -21,7 +21,7 @@ func (tx *transaction) RunMany(cypherOrParams ...interface{}) cypher.Response {
 }
 
 func (tx *transaction) Commit() error {
-	res := tx.db.getResponse("POST", tx.id + "/commit", request{})
+	res := tx.db.getResponse("POST", tx.id+"/commit", request{})
 	if res.deferredErr != nil {
 		return errMsg(res.deferredErr, "error during commit request")
 	}

@@ -39,16 +39,25 @@ func main() {
 	// 	})
 	// 	checkErr()
 
-	_, err = db.RunMany(
+	res := db.RunMany(
 		`MATCH (x {name: $name}) RETURN x.name`, map[string]interface{}{"name": "abc90"},
-		`MATCH (x) WHERE x.name CONTAINS $search RETURN x`, map[string]interface{}{"search": "8"}).
-		Results(func(result cypher.Result) (interface{}, error) {
-			return result.Rows(func(row cypher.Row) (interface{}, error) {
-				log.Println(row.GetAt(0))
-				return row.GetAt(0), nil
-			})
-		})
+		`MATCH (x) WHERE x.name CONTAINS $search RETURN x`, map[string]interface{}{"search": "8"})
+	for res.NextResult() {
+		r := res.GetResult()
+		for r.NextRow() {
+			log.Println(r.GetRow().GetAt(0))
+		}
+		err = r.Err()
+		checkErr()
+	}
+	err = res.Err()
 	checkErr()
+
+	rows, err := cypher.Collect(db.Run(`MATCH (x) WHERE x.name CONTAINS $search RETURN x`, map[string]interface{}{"search": "1"}))
+	checkErr()
+	for _, r := range rows {
+		log.Println(r.GetAt(0))
+	}
 
 	// params := map[string]interface{}{"name": "abc123"}
 	// err = db.Run(`MATCH (x {name: $name}) DELETE x`, params).Consume()

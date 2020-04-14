@@ -9,10 +9,12 @@ type result struct {
 	res           *response
 	index         int
 	columnMapping map[string]int
+	deferredErr   error
 
 	parseStarted bool
 	readingRows  bool
 	consumed     bool
+	lastRow      cypher.Row
 
 	Columns []string `json:"columns"`
 	Stats   stats    `json:"stats"`
@@ -22,36 +24,39 @@ func (r *result) Index() int {
 	return r.index
 }
 
-func (r *result) Rows(job func(row cypher.Row) (interface{}, error)) (interface{}, error) {
-	for {
-		debugLog("getting next row")
-		nextRow, err := r.nextRow()
-		if err != nil {
-			return nil, errMsg(err, "failed to get the next row")
-		}
-		debugLog("row has been read - row is nil? (%v)", nextRow == nil)
-		if nextRow == nil {
-			return nil, nil
-		}
-		ret, err := job(nextRow)
-		if err != nil {
-			return nil, errMsg(err, "failed during Results row job")
-		}
-		if ret != nil {
-			_, err := r.Consume()
-			return ret, err
-		}
+func (r *result) NextRow() bool {
+	if r.deferredErr != nil || r.consumed {
+		return r.nextRowDone()
 	}
+	debugLog("getting next row")
+	err := r.nextRow()
+	if err != nil {
+		r.deferredErr = errMsg(err, "failed to get the next row")
+		return r.nextRowDone()
+	}
+	debugLog("row has been read - row is nil? (%v)", r.lastRow == nil)
+	if r.lastRow == nil {
+		return r.nextRowDone()
+	}
+	return true
+}
+
+func (r *result) GetRow() cypher.Row {
+	return r.lastRow
+}
+
+func (r *result) Err() error {
+	return r.deferredErr
 }
 
 func (r *result) Consume() (cypher.Stats, error) {
 	debugLog("consuming the remaining rows")
 	for {
-		nextRow, err := r.nextRow()
+		err := r.nextRow()
 		if err != nil {
 			return nil, errMsg(err, "failed to get the next row")
 		}
-		if nextRow == nil {
+		if r.lastRow == nil {
 			return &r.Stats, nil
 		}
 	}
@@ -114,22 +119,30 @@ func (r *result) parseKeys() error {
 // If the end of the list of rows is reached:
 //   parse the remaining keys of the result, filling in 'Stats'
 //   return nil for the next row.
-func (r *result) nextRow() (cypher.Row, error) {
+func (r *result) nextRow() error {
 	if r.consumed {
-		return nil, nil
+		return nil
 	}
 	if !r.res.dec.More() {
+		r.lastRow = nil
 		t, err := r.res.dec.Token()
 		if err != nil {
-			return nil, err
+			return err
 		}
 		debugLog("expecting end of list of rows ']': token(%v)", t)
-		return nil, r.parseKeys()
+		return r.parseKeys()
 	}
-	nextRow := &row{columns: r.columnMapping}
-	err := r.res.dec.Decode(&nextRow)
+	r.lastRow = &row{columns: r.columnMapping}
+	err := r.res.dec.Decode(&r.lastRow)
 	if err != nil {
-		return nil, err
+		return err
 	}
-	return nextRow, nil
+	return nil
+}
+
+func (r *result) nextRowDone() bool {
+	if r.res.singleResult {
+		r.deferredErr = r.res.Consume()
+	}
+	return false
 }

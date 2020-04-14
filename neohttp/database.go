@@ -22,7 +22,7 @@ type database struct {
 	}
 }
 
-func (db *database) Run(statement string, params map[string]interface{}) cypher.Response {
+func (db *database) Run(statement string, params map[string]interface{}) cypher.Result {
 	return db.run("/commit", statement, params)
 }
 
@@ -131,14 +131,22 @@ func (db *database) getResponse(method, relPath string, body interface{}) *respo
 	return r
 }
 
-func (db *database) run(id, cypher string, params map[string]interface{}) cypher.Response {
-	return db.getResponse("POST", id, request{
+func (db *database) run(id, cypher string, params map[string]interface{}) cypher.Result {
+	res := db.getResponse("POST", id, request{
 		Statements: []query{{
-			Statement:  cypher,
-			Parameters: params,
+			Statement:    cypher,
+			Parameters:   params,
 			IncludeStats: true,
 		}},
 	})
+	res.singleResult = true
+	if !res.NextResult() {
+		return &result{
+			res:         res,
+			deferredErr: res.Err(),
+		}
+	}
+	return res.GetResult()
 }
 
 func (db *database) runMany(id string, cypherOrParams ...interface{}) cypher.Response {
