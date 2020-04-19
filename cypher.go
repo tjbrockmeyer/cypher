@@ -53,6 +53,7 @@ func Single(result Result) (Row, error) {
 	return row, err
 }
 
+// Collect all rows of the result and unmarshal them into the given slice of structs.
 func CollectUnmarshal(result Result, asStructSlice interface{}) error {
 	rows, err := Collect(result)
 	if err != nil {
@@ -61,12 +62,17 @@ func CollectUnmarshal(result Result, asStructSlice interface{}) error {
 	return UnmarshalRows(rows, asStructSlice)
 }
 
-func SingleUnmarshal(result Result, asStructSlice interface{}) error {
+// Get the single row from the result, unmarshaling it into the given struct.
+// If no row was found, the struct will be unmodified.
+func SingleUnmarshal(result Result, asStruct interface{}) error {
 	row, err := Single(result)
 	if err != nil {
 		return err
 	}
-	return UnmarshalRow(row, asStructSlice)
+	if row == nil {
+		return nil
+	}
+	return UnmarshalRow(row, asStruct)
 }
 
 // Unmarshal a row into a given struct type.
