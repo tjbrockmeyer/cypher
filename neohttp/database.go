@@ -104,7 +104,7 @@ func (db *database) getResponse(method, relPath string, body interface{}) *respo
 	if db.basicAuth != "" {
 		req.Header.Set("Authorization", db.basicAuth)
 	}
-	debugLog("requesting %s with payload %+v", req.URL.String(), body)
+	debugLog("requesting %s with payload %s", req.URL.String(), string(b))
 	res, err := http.DefaultClient.Do(req)
 	if err != nil {
 		r.deferredErr = errors.WithMessage(err, "could not send request / receive response")
@@ -114,15 +114,15 @@ func (db *database) getResponse(method, relPath string, body interface{}) *respo
 	r.header = res.Header
 	r.dec = json.NewDecoder(res.Body)
 	r.resBody = res.Body
-	if cypher.Debug {
-		bodyBytes, err := ioutil.ReadAll(res.Body)
-		if err != nil {
-			r.deferredErr = errors.WithMessage(err, "DEBUG ERROR ioutil.ReadAll() failed to read body")
-			return r
-		}
-		debugLog("response body: %v", string(bodyBytes))
-		r.dec = json.NewDecoder(bytes.NewReader(bodyBytes))
-	}
+	// if cypher.Debug {
+	// 	bodyBytes, err := ioutil.ReadAll(res.Body)
+	// 	if err != nil {
+	// 		r.deferredErr = errors.WithMessage(err, "DEBUG ERROR ioutil.ReadAll() failed to read body")
+	// 		return r
+	// 	}
+	// 	debugLog("response body: %v", string(bodyBytes))
+	// 	r.dec = json.NewDecoder(bytes.NewReader(bodyBytes))
+	// }
 	debugLog("response received with status: %v", r.statusCode)
 	err = r.parseKeys()
 	if err != nil {

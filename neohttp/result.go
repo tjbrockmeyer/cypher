@@ -28,13 +28,11 @@ func (r *result) NextRow() bool {
 	if r.deferredErr != nil || r.consumed {
 		return r.nextRowDone()
 	}
-	debugLog("getting next row")
 	err := r.nextRow()
 	if err != nil {
 		r.deferredErr = errMsg(err, "failed to get the next row")
 		return r.nextRowDone()
 	}
-	debugLog("row has been read - row is nil? (%v)", r.lastRow == nil)
 	if r.lastRow == nil {
 		return r.nextRowDone()
 	}
@@ -50,7 +48,6 @@ func (r *result) Err() error {
 }
 
 func (r *result) Consume() (cypher.Stats, error) {
-	debugLog("consuming the remaining rows")
 	for {
 		err := r.nextRow()
 		if err != nil {
@@ -67,11 +64,10 @@ func (r *result) parseKeys() error {
 		return nil
 	}
 	if !r.parseStarted {
-		t, err := r.res.dec.Token()
+		_, err := r.res.dec.Token()
 		if err != nil {
 			return err
 		}
-		debugLog("decoding opening brace for result: token(%v)", t)
 	}
 	r.parseStarted = true
 	for r.res.dec.More() {
@@ -79,7 +75,6 @@ func (r *result) parseKeys() error {
 		if err != nil {
 			return err
 		}
-		debugLog("reading next token, expecting valid result key: token(%v)", t)
 		switch t {
 		case "columns":
 			err = r.res.dec.Decode(&r.Columns)
@@ -95,7 +90,6 @@ func (r *result) parseKeys() error {
 			if err != nil {
 				return err
 			}
-			debugLog("reading next token, expecting '[': token(%v)", t)
 			return nil
 		case "stats":
 			err = r.res.dec.Decode(&r.Stats)
@@ -107,11 +101,10 @@ func (r *result) parseKeys() error {
 		}
 	}
 	r.consumed = true
-	t, err := r.res.dec.Token()
+	_, err := r.res.dec.Token()
 	if err != nil {
 		return err
 	}
-	debugLog("expected end of result at index %v '}': token(%v)", r.index, t)
 	return nil
 }
 
@@ -125,11 +118,10 @@ func (r *result) nextRow() error {
 	}
 	if !r.res.dec.More() {
 		r.lastRow = nil
-		t, err := r.res.dec.Token()
+		_, err := r.res.dec.Token()
 		if err != nil {
 			return err
 		}
-		debugLog("expecting end of list of rows ']': token(%v)", t)
 		return r.parseKeys()
 	}
 	r.lastRow = &row{columns: r.columnMapping}

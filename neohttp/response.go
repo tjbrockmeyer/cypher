@@ -85,11 +85,10 @@ func (r *response) Consume() error {
 
 func (r *response) parseKeys() error {
 	if !r.parseStarted {
-		t, err := r.dec.Token()
+		_, err := r.dec.Token()
 		if err != nil {
 			return err
 		}
-		debugLog("decoding opening brace for response: token(%v)", t)
 	}
 	r.parseStarted = true
 	for r.dec.More() {
@@ -97,7 +96,6 @@ func (r *response) parseKeys() error {
 		if err != nil {
 			return err
 		}
-		debugLog("reading next token, expecting valid response key: token(%v)", t)
 		switch t {
 		case "results":
 			r.readingResults = true
@@ -105,7 +103,6 @@ func (r *response) parseKeys() error {
 			if err != nil {
 				return err
 			}
-			debugLog("reading next token, expecting '[': token(%v)", t)
 			return nil
 		case "errors":
 			err = r.dec.Decode(&r.errors)
@@ -121,11 +118,10 @@ func (r *response) parseKeys() error {
 		}
 	}
 	r.consumed = true
-	t, err := r.dec.Token()
+	_, err := r.dec.Token()
 	if err != nil {
 		return err
 	}
-	debugLog("expected end of response '}': token(%v)", t)
 	return nil
 }
 
@@ -145,11 +141,10 @@ func (r *response) nextResult() error {
 	}
 	if !r.dec.More() {
 		r.lastResult = nil
-		t, err := r.dec.Token()
+		_, err := r.dec.Token()
 		if err != nil {
 			return err
 		}
-		debugLog("expecting end of list of results ']': token(%v)", t)
 		return r.parseKeys()
 	}
 	r.lastResult = &result{
@@ -174,5 +169,6 @@ func (r *response) getErrors() error {
 		}
 		return errors.New(b.String())
 	}
+	debugLog("no response errors found")
 	return nil
 }
