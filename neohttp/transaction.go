@@ -50,7 +50,10 @@ func (tx *transaction) Rollback() error {
 func (tx *transaction) handleResponse(res *response) error {
 	if tx.id == "" {
 		tx.location = res.header.Get("Location")
-		tx.id = tx.location[strings.LastIndex(tx.location, "/"):]
+		index := strings.LastIndex(tx.location, "/")
+		if index != -1 {
+			tx.id = tx.location[index:]
+		}
 	}
 	tx.alive = res.transaction != nil
 	return nil
