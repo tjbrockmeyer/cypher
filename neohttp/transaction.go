@@ -36,7 +36,7 @@ func (tx *transaction) Commit() error {
 }
 
 func (tx *transaction) Rollback() error {
-	res := tx.db.getResponse("DELETE", tx.id, request{})
+	res := tx.db.getResponse("DELETE", tx.id, request{Statements: []query{}})
 	if err := res.Consume(); err != nil {
 		tx.alive = false
 		return err
