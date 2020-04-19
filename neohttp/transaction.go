@@ -21,7 +21,7 @@ func (tx *transaction) RunMany(cypherOrParams ...interface{}) cypher.Response {
 }
 
 func (tx *transaction) Commit() error {
-	res := tx.db.getResponse("POST", tx.id+"/commit", request{})
+	res := tx.db.getResponse("POST", tx.id+"/commit", request{Statements: []query{}})
 	if res.deferredErr != nil {
 		return errMsg(res.deferredErr, "error during commit request")
 	}
