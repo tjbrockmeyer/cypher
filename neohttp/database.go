@@ -86,7 +86,7 @@ func (db *database) connectWithRetry(retries int) error {
 	return db.connectWithRetry(retries)
 }
 
-func (db *database) getResponse(method, relPath string, body interface{}) *response {
+func (db *database) getResponse(method, relPath string, body request) *response {
 	r := new(response)
 	b, err := json.Marshal(body)
 	if err != nil {
@@ -105,7 +105,12 @@ func (db *database) getResponse(method, relPath string, body interface{}) *respo
 	if db.basicAuth != "" {
 		req.Header.Set("Authorization", db.basicAuth)
 	}
-	debugLog("requesting %s with payload %s", req.URL.String(), string(b))
+	if cypher.Debug {
+		debugLog("requesting %s with payload %s", req.URL.String(), string(b))
+		for _, q := range body.Statements {
+			debugLog(q.Statement)
+		}
+	}
 	res, err := http.DefaultClient.Do(req)
 	if err != nil {
 		r.deferredErr = errors.WithMessage(err, "could not send request / receive response")
