@@ -108,6 +108,12 @@ func (db *database) getResponse(method, relPath string, body request) *response 
 	if cypher.Debug {
 		debugLog("requesting %s with payload %s", req.URL.String(), string(b))
 		for _, q := range body.Statements {
+			if q.Parameters != nil && len(q.Parameters) != 0 {
+				params, _ := json.Marshal(q.Parameters)
+				debugLog(":params %s", string(params))
+			} else {
+				debugLog(":params {}")
+			}
 			debugLog(q.Statement)
 		}
 	}
