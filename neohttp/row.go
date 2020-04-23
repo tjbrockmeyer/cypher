@@ -7,8 +7,8 @@ import (
 
 type row struct {
 	columns map[string]int
-	Row  []interface{} `json:"row"`
-	Meta []interface{} `json:"meta"`
+	Row     []interface{} `json:"row"`
+	Meta    []interface{} `json:"meta"`
 }
 
 func (r *row) GetAt(i int) interface{} {
@@ -26,11 +26,10 @@ func (r *row) MarshalJSON() ([]byte, error) {
 		buf.WriteString("\"" + name + "\":")
 		b, _ := json.Marshal(r.Row[index])
 		buf.Write(b)
-		if index == len(r.columns) - 1 {
+		if index != len(r.columns)-1 {
 			buf.WriteString(",")
 		}
 	}
 	buf.WriteString("}")
 	return buf.Bytes(), nil
 }
-
