@@ -21,15 +21,17 @@ func (r *row) Get(n string) interface{} {
 
 func (r *row) MarshalJSON() ([]byte, error) {
 	var buf bytes.Buffer
-	buf.WriteString("{")
+	buf.WriteByte('{')
+	i := 0
 	for name, index := range r.columns {
 		buf.WriteString("\"" + name + "\":")
 		b, _ := json.Marshal(r.Row[index])
 		buf.Write(b)
-		if index != len(r.columns)-1 {
+		if i < len(r.columns)-1 {
 			buf.WriteString(",")
+			i++
 		}
 	}
-	buf.WriteString("}")
+	buf.WriteByte('}')
 	return buf.Bytes(), nil
 }
